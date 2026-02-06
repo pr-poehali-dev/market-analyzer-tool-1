@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -7,8 +7,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { api, Product, SalesData, Competitor, Keyword } from '@/lib/api';
+import ReviewsSection from '@/components/ReviewsSection';
 
 const Index = () => {
   const [selectedPlatform, setSelectedPlatform] = useState('all');
@@ -17,6 +19,7 @@ const Index = () => {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [competitorDialogOpen, setCompetitorDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [reviewsDialogOpen, setReviewsDialogOpen] = useState(false);
   const [notifications, setNotifications] = useState({
     priceChanges: true,
     positionChanges: true,
@@ -24,141 +27,86 @@ const Index = () => {
     lowStock: false,
   });
 
-  const salesData = Array.from({ length: 30 }, (_, i) => ({
-    date: format(subDays(new Date(), 29 - i), 'dd MMM', { locale: ru }),
-    sales: Math.floor(Math.random() * 50000 + 30000),
-    orders: Math.floor(Math.random() * 200 + 100),
-  }));
+  const [products, setProducts] = useState<Product[]>([]);
+  const [salesHistory, setSalesHistory] = useState<SalesData[]>([]);
+  const [competitors, setCompetitors] = useState<Competitor[]>([]);
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const [stats, setStats] = useState<any>({});
+  const [ctrMetrics, setCtrMetrics] = useState<any>({});
+  const [positionHistory, setPositionHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const positionHistory = Array.from({ length: 30 }, (_, i) => ({
-    date: format(subDays(new Date(), 29 - i), 'dd MMM', { locale: ru }),
-    position: Math.floor(Math.random() * 20 + 5),
-  }));
+  useEffect(() => {
+    loadData();
+  }, [selectedPlatform, dateRange]);
 
-  const ctrData = [
-    { name: 'Показы', value: 45231, color: '#0EA5E9' },
-    { name: 'Клики', value: 2174, color: '#8B5CF6' },
-    { name: 'Покупки', value: 523, color: '#10B981' },
-  ];
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [productsData, statsData, salesData, keywordsData, ctrData] = await Promise.all([
+        api.getProducts(1, selectedPlatform),
+        api.getStats(1, parseInt(dateRange)),
+        api.getSalesHistory(1, parseInt(dateRange)),
+        api.getKeywords(1),
+        api.getCtrMetrics(1),
+      ]);
 
-  const keywordPerformance = Array.from({ length: 7 }, (_, i) => ({
-    keyword: ['смартфон', 'телефон', 'android', 'мобильный', 'недорого', 'купить', 'акция'][i],
-    impressions: Math.floor(Math.random() * 5000 + 1000),
-    clicks: Math.floor(Math.random() * 300 + 50),
-    ctr: (Math.random() * 5 + 1).toFixed(1),
-  }));
+      setProducts(productsData);
+      setStats(statsData);
+      setSalesHistory(salesData);
+      setKeywords(keywordsData);
+      setCtrMetrics(ctrData);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const stats = [
-    {
-      title: 'Продажи за месяц',
-      value: '₽1,247,350',
-      change: '+23.5%',
-      trend: 'up',
-      icon: 'TrendingUp',
-    },
-    {
-      title: 'Средняя позиция',
-      value: '12',
-      change: '+8 позиций',
-      trend: 'up',
-      icon: 'BarChart3',
-    },
-    {
-      title: 'CTR карточек',
-      value: '4.8%',
-      change: '+1.2%',
-      trend: 'up',
-      icon: 'MousePointerClick',
-    },
-    {
-      title: 'Конверсия',
-      value: '2.3%',
-      change: '-0.3%',
-      trend: 'down',
-      icon: 'Target',
-    },
-  ];
+  const loadPositionHistory = async (productId: number) => {
+    try {
+      const history = await api.getPositionHistory(productId, parseInt(dateRange));
+      setPositionHistory(history);
+    } catch (error) {
+      console.error('Failed to load position history:', error);
+    }
+  };
 
-  const products = [
-    {
-      id: 1,
-      name: 'Смартфон XYZ Pro Max',
-      position: 8,
-      prevPosition: 15,
-      sales: 234,
-      revenue: '₽428,900',
-      ctr: 5.2,
-      platform: 'wildberries',
-    },
-    {
-      id: 2,
-      name: 'Наушники BT-500',
-      position: 23,
-      prevPosition: 18,
-      sales: 156,
-      revenue: '₽187,200',
-      ctr: 3.8,
-      platform: 'wildberries',
-    },
-    {
-      id: 3,
-      name: 'Чехол Premium Silicone',
-      position: 5,
-      prevPosition: 7,
-      sales: 892,
-      revenue: '₽178,400',
-      ctr: 6.4,
-      platform: 'ozon',
-    },
-    {
-      id: 4,
-      name: 'Защитное стекло 9H',
-      position: 12,
-      prevPosition: 10,
-      sales: 567,
-      revenue: '₽113,400',
-      ctr: 4.2,
-      platform: 'yandex',
-    },
-  ];
+  const loadCompetitors = async (productId: number) => {
+    try {
+      const competitorsData = await api.getCompetitors(productId);
+      setCompetitors(competitorsData);
+    } catch (error) {
+      console.error('Failed to load competitors:', error);
+    }
+  };
 
-  const competitors = [
-    {
-      id: 1,
-      name: 'Конкурент А',
-      price: '₽18,990',
-      position: 3,
-      rating: 4.8,
-      reviews: 2341,
-      sales: 450,
-    },
-    {
-      id: 2,
-      name: 'Конкурент Б',
-      price: '₽17,450',
-      position: 5,
-      rating: 4.6,
-      reviews: 1876,
-      sales: 380,
-    },
-    {
-      id: 3,
-      name: 'Конкурент В',
-      price: '₽19,990',
-      position: 7,
-      rating: 4.7,
-      reviews: 3104,
-      sales: 520,
-    },
-  ];
+  const handleViewHistory = (productId: number) => {
+    setSelectedProduct(productId);
+    loadPositionHistory(productId);
+    setHistoryDialogOpen(true);
+  };
 
-  const filteredProducts = selectedPlatform === 'all' 
-    ? products 
-    : products.filter(p => p.platform === selectedPlatform);
+  const handleViewCompetitors = (productId: number) => {
+    setSelectedProduct(productId);
+    loadCompetitors(productId);
+    setCompetitorDialogOpen(true);
+  };
+
+  const handleViewReviews = (productId: number) => {
+    setSelectedProduct(productId);
+    setReviewsDialogOpen(true);
+  };
+
+  const ctrChartData = ctrMetrics.total_impressions ? [
+    { name: 'Показы', value: ctrMetrics.total_impressions, color: '#0EA5E9' },
+    { name: 'Клики', value: ctrMetrics.total_clicks, color: '#8B5CF6' },
+    { name: 'Покупки', value: ctrMetrics.total_conversions, color: '#10B981' },
+  ] : [];
 
   const handleExportReport = () => {
-    const csvContent = `Товар,Позиция,Продажи,Выручка,CTR\n${products.map(p => 
-      `${p.name},${p.position},${p.sales},${p.revenue},${p.ctr}%`
+    const csvContent = `Товар,Платформа,Позиция,CTR\n${products.map(p => 
+      `${p.name},${p.platform},${p.current_position || 'N/A'},${p.ctr}%`
     ).join('\n')}`;
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -167,6 +115,48 @@ const Index = () => {
     link.download = `market_analyzer_report_${format(new Date(), 'yyyy-MM-dd')}.csv`;
     link.click();
   };
+
+  const statsCards = [
+    {
+      title: 'Продажи за период',
+      value: `₽${Math.round(stats.total_revenue || 0).toLocaleString('ru-RU')}`,
+      change: '+23.5%',
+      trend: 'up',
+      icon: 'TrendingUp',
+    },
+    {
+      title: 'Средняя позиция',
+      value: Math.round(stats.avg_position || 0).toString(),
+      change: '+8 позиций',
+      trend: 'up',
+      icon: 'BarChart3',
+    },
+    {
+      title: 'CTR карточек',
+      value: `${(ctrMetrics.ctr || 0).toFixed(1)}%`,
+      change: '+1.2%',
+      trend: 'up',
+      icon: 'MousePointerClick',
+    },
+    {
+      title: 'Всего товаров',
+      value: products.length.toString(),
+      change: `${stats.total_sales || 0} продаж`,
+      trend: 'up',
+      icon: 'Package',
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Загрузка данных...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -184,16 +174,13 @@ const Index = () => {
             <Button variant="outline" size="icon" onClick={() => setSettingsDialogOpen(true)}>
               <Icon name="Settings" size={20} />
             </Button>
-            <Button variant="outline" size="icon">
-              <Icon name="Bell" size={20} />
-            </Button>
           </div>
         </div>
 
         <div className="flex gap-4 mb-6">
           <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Платформа" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Все платформы</SelectItem>
@@ -205,7 +192,7 @@ const Index = () => {
 
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-48">
-              <SelectValue placeholder="Период" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7">7 дней</SelectItem>
@@ -217,7 +204,7 @@ const Index = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8 animate-scale-in">
-          {stats.map((stat, index) => (
+          {statsCards.map((stat, index) => (
             <Card key={index} className="hover:shadow-lg transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -231,15 +218,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold mb-1">{stat.value}</div>
-                <p
-                  className={`text-sm flex items-center gap-1 ${
-                    stat.trend === 'up' ? 'text-success' : 'text-destructive'
-                  }`}
-                >
-                  <Icon
-                    name={stat.trend === 'up' ? 'ArrowUp' : 'ArrowDown'}
-                    size={16}
-                  />
+                <p className={`text-sm flex items-center gap-1 ${stat.trend === 'up' ? 'text-success' : 'text-muted-foreground'}`}>
+                  {stat.trend === 'up' && <Icon name="ArrowUp" size={16} />}
                   {stat.change}
                 </p>
               </CardContent>
@@ -248,52 +228,23 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="positions" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
             <TabsTrigger value="positions">Позиции</TabsTrigger>
             <TabsTrigger value="sales">Продажи</TabsTrigger>
             <TabsTrigger value="competitors">Конкуренты</TabsTrigger>
             <TabsTrigger value="ctr">CTR</TabsTrigger>
+            <TabsTrigger value="reviews">Отзывы</TabsTrigger>
           </TabsList>
 
           <TabsContent value="positions" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Мониторинг позиций</CardTitle>
-                    <CardDescription>Отслеживание карточек в результатах поиска</CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Badge
-                      variant={selectedPlatform === 'wildberries' ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedPlatform('wildberries')}
-                    >
-                      <Icon name="ShoppingBag" size={14} className="mr-1" />
-                      Wildberries
-                    </Badge>
-                    <Badge
-                      variant={selectedPlatform === 'ozon' ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedPlatform('ozon')}
-                    >
-                      <Icon name="Package" size={14} className="mr-1" />
-                      Ozon
-                    </Badge>
-                    <Badge
-                      variant={selectedPlatform === 'yandex' ? 'default' : 'outline'}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedPlatform('yandex')}
-                    >
-                      <Icon name="Store" size={14} className="mr-1" />
-                      Яндекс
-                    </Badge>
-                  </div>
-                </div>
+                <CardTitle>Мониторинг позиций</CardTitle>
+                <CardDescription>Отслеживание карточек в результатах поиска</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {filteredProducts.map((product) => (
+                  {products.map((product) => (
                     <div
                       key={product.id}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
@@ -301,14 +252,7 @@ const Index = () => {
                       <div className="flex-1">
                         <h3 className="font-semibold mb-1">{product.name}</h3>
                         <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Icon name="TrendingUp" size={14} />
-                            {product.sales} продаж
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Icon name="DollarSign" size={14} />
-                            {product.revenue}
-                          </span>
+                          <Badge variant="outline">{product.platform}</Badge>
                           <span className="flex items-center gap-1">
                             <Icon name="MousePointerClick" size={14} />
                             CTR {product.ctr}%
@@ -317,36 +261,21 @@ const Index = () => {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <div className="text-2xl font-bold text-primary">#{product.position}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-1">
-                            {product.position < product.prevPosition ? (
-                              <>
-                                <Icon name="ArrowUp" size={14} className="text-success" />
-                                <span className="text-success">
-                                  +{product.prevPosition - product.position}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <Icon name="ArrowDown" size={14} className="text-destructive" />
-                                <span className="text-destructive">
-                                  -{product.position - product.prevPosition}
-                                </span>
-                              </>
-                            )}
+                          <div className="text-2xl font-bold text-primary">
+                            #{product.current_position || 'N/A'}
                           </div>
+                          <div className="text-sm text-muted-foreground">Позиция</div>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedProduct(product.id);
-                            setHistoryDialogOpen(true);
-                          }}
-                        >
-                          <Icon name="ChartLine" size={16} className="mr-2" />
-                          История
-                        </Button>
+                        <div className="flex flex-col gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleViewHistory(product.id)}>
+                            <Icon name="ChartLine" size={16} className="mr-2" />
+                            История
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleViewReviews(product.id)}>
+                            <Icon name="MessageSquare" size={16} className="mr-2" />
+                            Отзывы
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -355,112 +284,66 @@ const Index = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="sales" className="space-y-4">
+          <TabsContent value="sales">
             <Card>
               <CardHeader>
                 <CardTitle>Динамика продаж</CardTitle>
-                <CardDescription>Анализ продаж за последние 30 дней</CardDescription>
+                <CardDescription>Анализ продаж за выбранный период</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={salesData}>
+                  <AreaChart data={salesHistory}>
                     <defs>
-                      <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                    <YAxis stroke="#64748b" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px'
-                      }}
+                    <XAxis
+                      dataKey="date"
+                      stroke="#64748b"
+                      fontSize={12}
+                      tickFormatter={(value) => format(new Date(value), 'dd MMM', { locale: ru })}
                     />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip />
                     <Area 
                       type="monotone" 
-                      dataKey="sales" 
+                      dataKey="revenue" 
                       stroke="#0EA5E9" 
                       strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorSales)" 
+                      fill="url(#colorRevenue)" 
                       name="Выручка (₽)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Количество заказов</CardTitle>
-                <CardDescription>Динамика заказов по дням</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={salesData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                    <YAxis stroke="#64748b" fontSize={12} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Bar dataKey="orders" fill="#8B5CF6" radius={[8, 8, 0, 0]} name="Заказы" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
           </TabsContent>
 
-          <TabsContent value="competitors" className="space-y-4">
+          <TabsContent value="competitors">
             <Card>
               <CardHeader>
                 <CardTitle>Анализ конкурентов</CardTitle>
-                <CardDescription>Сравнение цен и позиций похожих товаров</CardDescription>
+                <CardDescription>Выберите товар для просмотра конкурентов</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {competitors.map((competitor) => (
+                  {products.map((product) => (
                     <div
-                      key={competitor.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      key={product.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => handleViewCompetitors(product.id)}
                     >
                       <div className="flex-1">
-                        <h3 className="font-semibold mb-1">{competitor.name}</h3>
-                        <div className="flex gap-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Icon name="Star" size={14} className="fill-warning text-warning" />
-                            {competitor.rating}
-                          </span>
-                          <span>{competitor.reviews} отзывов</span>
-                          <span>{competitor.sales} продаж/мес</span>
-                        </div>
+                        <h3 className="font-semibold mb-1">{product.name}</h3>
+                        <Badge variant="outline">{product.platform}</Badge>
                       </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <div className="text-lg font-bold">{competitor.price}</div>
-                          <div className="text-sm text-muted-foreground">Цена</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-primary">#{competitor.position}</div>
-                          <div className="text-sm text-muted-foreground">Позиция</div>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setCompetitorDialogOpen(true)}
-                        >
-                          <Icon name="Eye" size={16} className="mr-2" />
-                          Детали
-                        </Button>
-                      </div>
+                      <Button variant="outline" size="sm">
+                        <Icon name="Eye" size={16} className="mr-2" />
+                        Смотреть конкурентов
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -468,7 +351,7 @@ const Index = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="ctr" className="space-y-4">
+          <TabsContent value="ctr">
             <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -476,25 +359,28 @@ const Index = () => {
                   <CardDescription>От показа до покупки</CardDescription>
                 </CardHeader>
                 <CardContent className="flex justify-center">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={ctrData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {ctrData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  {ctrChartData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={ctrChartData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={100}
+                          dataKey="value"
+                        >
+                          {ctrChartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-muted-foreground">Нет данных</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -505,17 +391,11 @@ const Index = () => {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={keywordPerformance} layout="horizontal">
+                    <BarChart data={keywords.slice(0, 7)} layout="horizontal">
                       <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                       <XAxis type="number" stroke="#64748b" fontSize={12} />
                       <YAxis type="category" dataKey="keyword" stroke="#64748b" fontSize={12} width={80} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: '#fff', 
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px'
-                        }}
-                      />
+                      <Tooltip />
                       <Bar dataKey="clicks" fill="#10B981" radius={[0, 8, 8, 0]} name="Клики" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -523,95 +403,46 @@ const Index = () => {
               </Card>
             </div>
           </TabsContent>
-        </Tabs>
 
-        <div className="mt-8 grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ключевые слова</CardTitle>
-              <CardDescription>Топ запросов для оптимизации</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {keywordPerformance.map((keyword, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <span className="font-medium">{keyword.keyword}</span>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary">{keyword.impressions} показов</Badge>
-                      <Badge variant="outline">{keyword.ctr}% CTR</Badge>
-                      <Button variant="ghost" size="sm">
-                        <Icon name="Plus" size={16} />
-                      </Button>
-                    </div>
+          <TabsContent value="reviews">
+            {products.length > 0 ? (
+              <div className="space-y-4">
+                {products.map((product) => (
+                  <div key={product.id}>
+                    <h3 className="text-lg font-semibold mb-4">{product.name}</h3>
+                    <ReviewsSection productId={product.id} />
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Уведомления</CardTitle>
-              <CardDescription>Важные изменения и события</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-success/10 border border-success/20 rounded-lg">
-                  <Icon name="ArrowUp" size={20} className="text-success mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">Рост позиции</p>
-                    <p className="text-sm text-muted-foreground">Смартфон XYZ поднялся на 7 позиций</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                  <Icon name="AlertTriangle" size={20} className="text-warning mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">Изменение цены конкурента</p>
-                    <p className="text-sm text-muted-foreground">Конкурент А снизил цену на 15%</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
-                  <Icon name="TrendingUp" size={20} className="text-primary mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">Рост CTR</p>
-                    <p className="text-sm text-muted-foreground">CTR наушников вырос до 5.8%</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">Нет товаров для анализа отзывов</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>История позиций</DialogTitle>
-            <DialogDescription>
-              Динамика изменения позиций за последние 30 дней
-            </DialogDescription>
+            <DialogDescription>Динамика изменения позиций за выбранный период</DialogDescription>
           </DialogHeader>
           <div className="mt-4">
             <ResponsiveContainer width="100%" height={350}>
               <LineChart data={positionHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                <YAxis 
-                  stroke="#64748b" 
-                  fontSize={12} 
-                  reversed 
-                  label={{ value: 'Позиция', angle: -90, position: 'insideLeft' }}
+                <XAxis
+                  dataKey="date"
+                  stroke="#64748b"
+                  fontSize={12}
+                  tickFormatter={(value) => format(new Date(value), 'dd MMM', { locale: ru })}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#fff', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px'
-                  }}
-                />
+                <YAxis stroke="#64748b" fontSize={12} reversed />
+                <Tooltip />
                 <Line 
                   type="monotone" 
                   dataKey="position" 
@@ -629,42 +460,34 @@ const Index = () => {
       <Dialog open={competitorDialogOpen} onOpenChange={setCompetitorDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Детальный анализ конкурента</DialogTitle>
-            <DialogDescription>
-              Полная информация о товаре конкурента
-            </DialogDescription>
+            <DialogTitle>Конкуренты</DialogTitle>
+            <DialogDescription>Сравнение с похожими товарами</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Текущая цена</div>
-                <div className="text-2xl font-bold">₽18,990</div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Рейтинг</div>
-                <div className="text-2xl font-bold flex items-center gap-2">
-                  4.8 <Icon name="Star" size={20} className="fill-warning text-warning" />
+          <div className="space-y-3 mt-4">
+            {competitors.map((comp) => (
+              <div key={comp.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">{comp.name}</h3>
+                  <div className="flex gap-3 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Icon name="Star" size={14} className="fill-warning text-warning" />
+                      {comp.rating}
+                    </span>
+                    <span>{comp.reviews_count} отзывов</span>
+                  </div>
+                </div>
+                <div className="flex gap-4">
+                  <div className="text-right">
+                    <div className="text-lg font-bold">₽{comp.price}</div>
+                    <div className="text-sm text-muted-foreground">Цена</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-primary">#{comp.position}</div>
+                    <div className="text-sm text-muted-foreground">Позиция</div>
+                  </div>
                 </div>
               </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Продаж в месяц</div>
-                <div className="text-2xl font-bold">450</div>
-              </div>
-              <div className="p-4 border rounded-lg">
-                <div className="text-sm text-muted-foreground mb-1">Позиция</div>
-                <div className="text-2xl font-bold text-primary">#3</div>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button className="flex-1">
-                <Icon name="ExternalLink" size={16} className="mr-2" />
-                Открыть на маркетплейсе
-              </Button>
-              <Button variant="outline">
-                <Icon name="Bell" size={16} className="mr-2" />
-                Отслеживать
-              </Button>
-            </div>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
@@ -673,9 +496,7 @@ const Index = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Настройки уведомлений</DialogTitle>
-            <DialogDescription>
-              Управление оповещениями и уведомлениями
-            </DialogDescription>
+            <DialogDescription>Управление оповещениями</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div className="flex items-center justify-between">
@@ -715,19 +536,6 @@ const Index = () => {
                 onClick={() => setNotifications(prev => ({ ...prev, ctrAlerts: !prev.ctrAlerts }))}
               >
                 {notifications.ctrAlerts ? 'Вкл' : 'Выкл'}
-              </Button>
-            </div>
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-medium">Низкие остатки</div>
-                <div className="text-sm text-muted-foreground">Предупреждать о необходимости пополнения</div>
-              </div>
-              <Button
-                variant={notifications.lowStock ? "default" : "outline"}
-                size="sm"
-                onClick={() => setNotifications(prev => ({ ...prev, lowStock: !prev.lowStock }))}
-              >
-                {notifications.lowStock ? 'Вкл' : 'Выкл'}
               </Button>
             </div>
           </div>

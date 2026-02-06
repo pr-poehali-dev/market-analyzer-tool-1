@@ -1,0 +1,45 @@
+{
+  "tests": [
+    {
+      "name": "Get products list",
+      "method": "GET",
+      "queryParams": {
+        "action": "products",
+        "user_id": "1"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "products": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get stats",
+      "method": "GET",
+      "queryParams": {
+        "action": "stats",
+        "user_id": "1",
+        "days": "30"
+      },
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Add product",
+      "method": "POST",
+      "body": {
+        "action": "add-product",
+        "user_id": 1,
+        "platform": "wildberries",
+        "external_id": "test123",
+        "name": "Test Product",
+        "price": 1999.99
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "product": "object"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
